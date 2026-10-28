@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WFF resolves bare resource names at runtime; retain these when shrinking. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/watchface,@xml/watch_face_info,@drawable/*,@font/*,@string/*" />

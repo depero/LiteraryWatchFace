@@ -1,4 +1,12 @@
 <resources>
-    <string name="watch_face_name">LiteraryWatchFace</string>
-    <string name="greeting">Hello, world!</string>
+    <string name="watch_face_name">Literary Watch Face</string>
+    <string name="missing_passage">No passage for this minute.</string>
+
+    <!-- Labels shown in the Wear OS watch face editor. -->
+    <string name="theme_label">Color theme</string>
+    <string name="theme_ink">Ink</string>
+    <string name="theme_forest">Forest</string>
+    <string name="theme_mono">Monochrome</string>
+    <string name="show_date_label">Show date</string>
+    <string name="show_caption_label">Show title and author</string>
 </resources>

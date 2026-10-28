@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CUSTOMIZATION MAP (full walkthrough in README.md)
+    1. UserConfigurations: colors and options in the watch's face editor.
+    2. background: active-mode fill; the underlying Scene stays black in ambient.
+    3. literature_entry_template: full passage, inline highlight, title, author.
+       Gradle expands it using literature/litclock_annotated.csv.
+    4. battery and date: small header, unchanged by the generator.
+
+    Coordinates use a 450 x 450 design canvas, scaled by Wear OS.
+    WFF resource names are bare names, e.g. missing_passage, not @string/missing_passage.
+-->
+<WatchFace width="450" height="450">
+    <Metadata key="CLOCK_TYPE" value="DIGITAL" />
+
+    <!-- Each palette: background, passage, date, attribution/battery, time highlight (0 to 4). -->
+    <UserConfigurations>
+        <ColorConfiguration id="theme" displayName="theme_label" defaultValue="ink">
+            <ColorOption id="ink" displayName="theme_ink"
+                colors="#FF101820 #FFF5F0E8 #FFD6B780 #FFBAC5CC #FFD6B780" />
+            <ColorOption id="forest" displayName="theme_forest"
+                colors="#FF101C18 #FFF0F5ED #FFA8CC9A #FFB6C9BC #FFA8CC9A" />
+            <ColorOption id="mono" displayName="theme_mono"
+                colors="#FF000000 #FFFFFFFF #FFFFFFFF #FFBBBBBB #FF80D8FF" />
+        </ColorConfiguration>
+        <BooleanConfiguration id="show_date" displayName="show_date_label"
+            screenReaderText="show_date_label" defaultValue="TRUE" />
+        <BooleanConfiguration id="show_caption" displayName="show_caption_label"
+            screenReaderText="show_caption_label" defaultValue="TRUE" />
+    </UserConfigurations>
+
+    <Scene backgroundColor="#FF000000">
+        <!-- BACKGROUND: first layer, behind all text. Hidden in ambient mode. -->
+        <Group name="background" x="0" y="0" width="450" height="450">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
+            <PartDraw x="0" y="0" width="450" height="450">
+                <Rectangle x="0" y="0" width="450" height="450">
+                    <Fill color="[CONFIGURATION.theme.0]" />
+                </Rectangle>
+            </PartDraw>
+            <!-- Optional image layer goes here. See README.md for a complete example. -->
+        </Group>
+
+        <!-- These two templates are replaced with hour/minute Conditions during each build. -->
+        <Group name="literature_active" x="0" y="0" width="450" height="450">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
+            <Group name="literature_entry_template" x="0" y="0" width="450" height="450">
+                <PartText name="quote_body" x="50" y="92" width="350" height="266">
+                    <!-- Both Font prototypes use the same size so inline runs scale together. -->
+                    <Text align="CENTER" maxLines="32" isAutoSize="TRUE" ellipsis="FALSE"><Font family="SYNC_TO_DEVICE" size="32" color="[CONFIGURATION.theme.1]">Passage text </Font><Font family="SYNC_TO_DEVICE" size="32" color="[CONFIGURATION.theme.4]" weight="BOLD">time phrase</Font></Text>
+                </PartText>
+                <BooleanConfiguration id="show_caption">
+                    <BooleanOption id="TRUE">
+                        <Group name="attribution" x="85" y="364" width="280" height="52">
+                            <PartText name="book_title" x="0" y="0" width="280" height="32">
+                                <Text align="CENTER" maxLines="2" isAutoSize="TRUE" ellipsis="FALSE"><Font family="SYNC_TO_DEVICE" size="14" color="[CONFIGURATION.theme.3]">Book title</Font></Text>
+                            </PartText>
+                            <PartText name="book_author" x="20" y="36" width="240" height="16">
+                                <Text align="CENTER" maxLines="1" ellipsis="FALSE"><Font family="SYNC_TO_DEVICE" size="11" color="[CONFIGURATION.theme.3]">Author</Font></Text>
+                            </PartText>
+                        </Group>
+                    </BooleanOption>
+                </BooleanConfiguration>
+            </Group>
+            <Group name="missing_passage_template" x="50" y="92" width="350" height="266">
+                <PartText x="0" y="30" width="350" height="55">
+                    <Text align="CENTER"><Font family="SYNC_TO_DEVICE" size="22" color="[CONFIGURATION.theme.1]"><Template>%s<Parameter expression="missing_passage" /></Template></Font></Text>
+                </PartText>
+                <DigitalClock x="0" y="105" width="350" height="110">
+                    <TimeText x="0" y="0" width="350" height="110" format="hh:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER">
+                        <Font family="SYNC_TO_DEVICE" size="80" color="[CONFIGURATION.theme.4]" />
+                    </TimeText>
+                </DigitalClock>
+            </Group>
+        </Group>
+
+        <!-- Ambient behavior stays compact and independent from the passage selection. -->
+        <Group name="ambient_time" x="50" y="170" width="350" height="110" alpha="0">
+            <Variant mode="AMBIENT" target="alpha" value="255" />
+            <DigitalClock x="0" y="0" width="350" height="110">
+                <TimeText x="0" y="0" width="350" height="110" format="hh:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER">
+                    <Font family="SYNC_TO_DEVICE" size="96" color="#FFFFFFFF" weight="THIN" />
+                </TimeText>
+            </DigitalClock>
+        </Group>
+
+        <!-- Live battery stays visible above the date, including in ambient mode. -->
+        <Group name="battery_status" x="0" y="0" width="450" height="450">
+            <PartText name="battery" x="165" y="20" width="120" height="24">
+                <Text align="CENTER" maxLines="1">
+                    <Font family="SYNC_TO_DEVICE" size="16" color="[CONFIGURATION.theme.3]"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]" /></Template></Font>
+                </Text>
+            </PartText>
+        </Group>
+
+        <!-- SUPPORTING CONTENT: all hidden in ambient mode by this one Variant. -->
+        <Group name="supporting_content" x="0" y="0" width="450" height="450">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
+
+            <BooleanConfiguration id="show_date">
+                <BooleanOption id="TRUE">
+                    <PartText name="date" x="105" y="46" width="240" height="30">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="20"
+                                color="[CONFIGURATION.theme.2]">
+                                <Template>%s, %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[MONTH_S]" /><Parameter expression="[DAY]" /></Template>
+                            </Font>
+                        </Text>
+                    </PartText>
+                </BooleanOption>
+            </BooleanConfiguration>
+        </Group>
+    </Scene>
+</WatchFace>
