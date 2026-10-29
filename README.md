@@ -1,8 +1,8 @@
 # Literary Watch Face
 
-The awake face shows a passage matching the watch's local hour and minute. Its time phrase is highlighted in a separate color, battery percentage and date appear above, and the book title and author appear below. Ambient mode keeps the compact white digital clock and battery percentage on black.
+The awake face shows a passage matching the watch's local hour and minute. Its time phrase is highlighted in a separate color, battery percentage and date appear above, and the book title and author appear below. The watch face editor's **Always-on display** setting offers **Time phrase only** (white phrase on black) or **Full quote** (dim gray passage, bold white time phrase, and title/author). Both keep the same text placement as the awake quote.
 
-This is a **Watch Face Format (WFF) version 3** resource-only app. Gradle parses the literature file on your computer and generates XML and strings; Wear OS selects and renders them without an app timer or runtime CSV parser. Version 3 provides automatic text sizing. The existing minimum Android API 36 is unchanged and supports this format.
+This is a **Watch Face Format (WFF) version 3** resource-only app. Gradle parses the literature file on your computer and generates XML; Wear OS selects and renders it without an app timer or runtime CSV parser. Version 3 provides automatic text sizing. The existing minimum Android API 36 is unchanged and supports this format.
 
 ## Main files
 
@@ -29,7 +29,7 @@ HH:mm|time phrase|full passage|book title|author|sfw/nsfw
 
 Quotation marks belong to the passage; this is not a quoted RFC CSV dialect. A literal `|` inside a field is unsupported. Times must be zero-padded 24-hour values from `00:00` to `23:59`. The sixth field is ignored as requested, so all supplied content is eligible.
 
-The full passage is retained. Time-phrase matching ignores case, preserves the actual wording/case in the passage, and highlights every matching occurrence. XML-sensitive characters, apostrophes, percent signs, quotation marks, and spaces at inline color boundaries are escaped for Android resources. Source `<br>`, `<br/>`, and `<br />` tags become line breaks; the file's stray `<time/>` / `</time>` markers are removed.
+The full passage is retained. Time-phrase matching ignores case, preserves the actual wording/case in the passage, and highlights every matching occurrence. Static literature is written as escaped XML text inside Font elements, preserving punctuation, quotes, percent signs, line breaks, and spaces between colored runs. It does not allocate thousands of live Template/Parameter bindings or a duplicate generated Android string table. Source `<br>`, `<br/>`, and `<br />` tags become line breaks; the file's stray `<time/>` / `</time>` markers are removed.
 
 For minutes with multiple entries, the selected row is `DAY_OF_YEAR % number_of_entries`, in original file order. Selection is stable throughout that minute and rotates on different dates. It follows the watch's local date and time, independently of the 12/24-hour notation used by the fallback clock.
 
@@ -47,19 +47,20 @@ The template uses a 450 by 450 logical canvas, scaled by Wear OS. `(0, 0)` is th
 
 | Element in the template | Position and bounds | Styling |
 | --- | --- | --- |
-| `battery` | x=165, y=20, 120 by 24 | Live percentage, size 16; also visible in ambient mode |
+| `battery` | x=165, y=20, 120 by 24 | Live percentage, size 16; awake only |
 | `date` | x=105, y=46, 240 by 30 | Original date formatting, size 20 |
-| `quote_body` | x=50, y=92, 350 by 266 | Full passage; size up to 32, pre-fitted during generation with native auto-size as backup |
-| `attribution` | x=85, y=364, 280 by 52 | Parent for title and author |
-| `book_title` | x=0, y=0 within attribution, 280 by 32 | Up to size 14, up to two lines, pre-fitted with automatic sizing |
-| `book_author` | x=20, y=36 within attribution, 240 by 16 | Up to size 11, pre-fitted on one separate line |
-| `ambient_time` | x=50, y=170, 350 by 110 | Thin white time, size 96 |
+| `quote_body` | x=50, y=92, 350 by 266 | Full passage; size up to 32, fitted and vertically centered within this area during generation |
+| `book_title` | x=85, y=364, 280 by 32 | Up to size 15, up to two lines, pre-fitted with automatic sizing |
+| `book_author` | x=105, y=400, 240 by 16 | Up to size 12, pre-fitted on a separate line |
+| Generated ambient quote bodies | Same fitted bounds as their awake quote | Phrase-only: white/transparent; Full quote: white time phrase, gray body and attribution |
 
-`literature_entry_template` is cloned once per passage. Keep its `quote_body`, `book_title`, and `book_author` names: the generator uses them to locate the fields. The two Font elements in quote_body are prototypes for ordinary and highlighted text. Keep them in that order and use the same starting size/family so inline segments scale together.
+Keep the template's `quote_body`, `book_title`, and `book_author` names: the generator uses them to locate the fields. The two Font elements in quote_body are prototypes for ordinary and highlighted text. Keep them in that order and use the same starting size/family so inline segments scale together. Separate title and author fields give reliable line placement on the native renderer.
 
-The generator measures Unicode wrapping, explicit line breaks, and bold highlight runs, then chooses a font size that fits with spare room for device font differences. The passage also uses `isAutoSize="TRUE"`, `maxLines="32"`, and `ellipsis="FALSE"` as a device adjustment, without deliberately truncating the quote. Some native runtimes can clip mixed-style text when relying only on auto-size, which is why the build pre-fits each entry. The body has a 12-unit minimum; an entry that cannot fit at that size fails generation with its line number. Titles can wrap to two lines; authors occupy a separate smaller line. Test long additions or custom fonts on your watch.
+The quote area's template bounds define its available space. For each generated passage, the text box is shortened to its measured wrapped height (including a small safety margin) and centered vertically in that area. Short passages therefore sit near the middle instead of starting at the top. Horizontal alignment remains centered. Battery, date, title, and author keep their existing positions. This uses WFF 3-compatible positioning, preserving the current device requirements.
 
-The date's coordinates, font, and `%s, %s %s` template remain as before. Its month/day names follow the watch locale, while its ordering and punctuation come from the template. The footer visibility option retains its internal ID `show_caption` so existing saved settings still work; its displayed label is now **Show title and author**. The theme and Show date options remain available in the watch face editor.
+The generator measures Unicode wrapping, explicit line breaks, and bold highlight runs, then chooses a font size that fits with spare room for device font differences. The passage also uses `isAutoSize="TRUE"`, `maxLines="32"`, and `ellipsis="FALSE"` as a device adjustment, without deliberately truncating the quote. Some native runtimes can clip mixed-style text when relying only on auto-size, which is why the build pre-fits each entry. The body has a 12-unit minimum; an entry that cannot fit at that size fails generation with its line number. Titles fit down to size 12 and authors to size 8 when needed. Test long additions or custom fonts on your watch.
+
+The date's coordinates, font, and `%s, %s %s` template remain as before. Its month/day names follow the watch locale, while its ordering and punctuation come from the template. Theme, Show date, and Always-on display remain available in the editor. The optional Show title and author toggle was removed to avoid thousands of per-entry visibility bindings that exhausted the watch renderer's heap. Title and author remain visible when awake and in Full quote AoD. To hide them permanently, set `alpha="0"` on both PartText fields in the template and rebuild.
 
 ## Colors and fonts
 
@@ -105,9 +106,22 @@ Other text can use Template/Parameter with live [data sources](https://developer
 
 ## Ambient mode and fallback time
 
-The literature_active group has an ambient alpha Variant of 0, hiding both the passage and attribution while idle. The supporting_content group hides the date. ambient_time has the opposite alpha pattern and displays the compact white clock. The battery percentage is outside these groups, so it remains visible while idle and when Show date is disabled. It reads the live BATTERY_PERCENT data source and uses palette color 3. To display literature in ambient mode too, change these groups' visibility and styling deliberately and verify the idle appearance on your device.
+Open the watch face editor and choose **Always-on display**:
 
-The ambient and missing-passage clocks use `format="hh:mm" hourFormat="SYNC_TO_DEVICE"`. For fixed 24-hour notation, use `hourFormat="24"`; for 12-hour notation use `"12"`. `format="h:mm"` removes a leading hour zero. These numeric format changes do not affect literature selection. Use seconds only for an awake fallback if desired, allowing extra width or reducing its font size. See [TimeText](https://developer.android.com/reference/wear-os/wff/clock/time-text).
+On the watch, hold the face, choose Edit/Customize (the pencil button), and navigate to Always-on display. The project's watch_face_info.xml declares Editable=true so the editor is exposed by the face picker.
+
+- **Time phrase only** (default): only time phrases are white (`#FFFFFFFF`). Other words are transparent (`#00000000`) but retain their layout space, preserving phrase positions and wrapping. Attribution is hidden.
+- **Full quote**: the passage is gray (`#FF999999`), time phrases stay bold white, and title/author are dim gray (`#FF888888`). Attribution follows the **Show title and author** setting.
+
+Both modes use a black background. Battery and date remain awake-only. Waking restores the colored full quote in place. There is no separate large digital clock for covered minutes.
+
+Mode visibility is applied to the persistent literature_active and literature_ambient parent groups, outside all hour/minute/day Conditions. The minute-changing branches contain no ambient Variants. New quotes therefore inherit the current visibility immediately, even when the minute changes while the watch remains asleep; a wake/timeout cycle is not required. Awake and ambient selections share the same fitted geometry, typography, selection expressions, and literal text, with unique expression/group names. Both AoD options reuse one ambient selection tree: a named color palette makes the surrounding text and attribution transparent or gray. This keeps the editor's memory use lower than maintaining a separate selection tree for each option.
+
+The real watch's renderer has a smaller heap than the emulator. To leave room for both the live face and editor preview, generation strips scene-formatting whitespace and comments, flattens neutral per-entry groups, and avoids per-entry visibility bindings. Literal passage spacing is preserved. Keep ambient visibility on the outer groups: Variants inside changing minute branches can reset to awake styling on minute rollover.
+
+The editor option uses ColorConfiguration ID `aod_mode`, with named option IDs `phrase` and `full`. Scroll or turn the crown between Time phrase only and Full quote. Change its defaultValue in the template to change the initial choice; saved user selections take precedence. To adjust full-quote gray levels, edit its ColorOption palettes in the template. Keep the time phrase white and keep the mode Variants on the outer groups when changing the layout.
+
+For the eight minutes without a matching passage, the numeric fallback is still available: the awake message disappears while idle, leaving only a white numeric time in the same place as the awake fallback. Its TimeText elements use `format="hh:mm" hourFormat="SYNC_TO_DEVICE"`. For fixed 24-hour notation use `hourFormat="24"`; for 12-hour notation use `"12"`. `format="h:mm"` removes a leading hour zero. These numeric format changes do not affect literature selection. See [TimeText](https://developer.android.com/reference/wear-os/wff/clock/time-text).
 
 ## Build and verify
 
@@ -118,7 +132,7 @@ In Android Studio, sync, select a compatible Wear OS emulator/watch, and run the
 .\gradlew.bat -p buildSrc test
 ```
 
-The tests cover record validation, exact-case highlighting, repeated phrases, Android escaping, conservative text fitting, generated references, midnight and day rotation, all 1,440 minutes on representative dates, and retention of every supplied passage. A malformed or missing input file stops generation.
+The tests cover record validation, exact-case highlighting, repeated phrases, Android escaping, conservative text fitting, vertical centering, identical awake/ambient typography and wrapping, ambient visibility and white phrase colors, generated references, midnight and day rotation, all 1,440 minutes on representative dates, and retention of every supplied passage. A malformed or missing input file stops generation.
 
 Use Android Studio's bundled JDK as JAVA_HOME if your terminal has no Java configured. The debug APK is `watchface/build/outputs/apk/debug/watchface-debug.apk`. The release APK is unsigned until release signing is configured.
 
@@ -128,7 +142,7 @@ APK compilation is not a WFF schema check. Use Android Studio's WFF inspections 
 java -jar C:\path\to\wff-validator.jar 3 .\watchface\build\generated\literature\res\raw\watchface.xml
 ```
 
-Check long passages, all three themes, the visibility toggles, missing minutes, and active/ambient transitions on your device. Logcat's runtime logs help diagnose missing fonts/resources. For publishing, also run Google's memory-footprint checks; see [WFF debugging](https://developer.android.com/training/wearables/wff/debug) and [setup](https://developer.android.com/training/wearables/wff/setup).
+Check long passages, all three themes, the Show date toggle, missing minutes, and active/ambient transitions on your device. Logcat's runtime logs help diagnose missing fonts/resources. For publishing, also run Google's memory-footprint checks; see [WFF debugging](https://developer.android.com/training/wearables/wff/debug) and [setup](https://developer.android.com/training/wearables/wff/setup).
 
 `res/drawable/preview.png` remains the original static picker image, independent of the live layout. Replace it with a representative screenshot once the design is settled.
 
@@ -138,5 +152,5 @@ The template retains minSdk 36, compileSdk 37, and targetSdk 37. WFF v3 requires
 
 The displayed name is watch_face_name in strings.xml; applicationId in the module Gradle file is the installation identity. Change the example applicationId before publishing and keep it stable for subsequent updates. Increment versionCode for published updates. The manifest's hasCode=false is intentional.
 
-raw/keep.xml preserves WFF resources looked up by bare name during release shrinking. Do not remove generated strings because ordinary Android code does not reference them. If a source edit appears ineffective, rebuild/reinstall, verify active versus ambient mode, and check saved editor settings.
+raw/keep.xml preserves WFF resources looked up by bare name during release shrinking. Do not remove label/message strings because ordinary Android code does not reference them. Literature itself is static XML text. If a source edit appears ineffective, rebuild/reinstall, verify active versus ambient mode, and check saved editor settings.
 

@@ -11,11 +11,20 @@ There is no header or quoted-CSV processing. Quotation marks are literal content
 is currently ignored, so no content filtering is applied.
 
 Every Android build automatically runs `generateLiteratureResources`. It converts
-the source into WFF Conditions and Android strings, with the date above, passage
+the source into WFF Conditions and inline XML text, with the date above, passage
 in the center, colored time phrase, and book title/author below. Literal phrase
 matching ignores case while preserving the passage's original spelling. All
 matching occurrences are highlighted. HTML line breaks become real line breaks,
 and the source's time marker tags are removed.
+
+The editor's Always-on display option offers Time phrase only (white phrase,
+transparent surrounding words) and Full quote (dim gray passage, bold white time
+phrase, and title/author). Both preserve the awake quote's placement and wrapping.
+Battery and date appear only while awake. Persistent mode visibility sits outside
+the minute-changing selection, keeping the chosen appearance through rollovers.
+The generated scene is compacted to leave room for the live face and editor
+preview in the watch's heap. Neutral entry groups, formatting nodes, and per-entry
+visibility bindings are removed. Title and author remain separate text fields.
 
 Multiple passages for the same minute rotate using the watch's local DAY_OF_YEAR
 modulo the number of passages, in file order. Minutes with no entry show an

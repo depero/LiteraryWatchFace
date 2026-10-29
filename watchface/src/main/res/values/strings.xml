@@ -8,5 +8,7 @@
     <string name="theme_forest">Forest</string>
     <string name="theme_mono">Monochrome</string>
     <string name="show_date_label">Show date</string>
-    <string name="show_caption_label">Show title and author</string>
+    <string name="aod_mode_label">Always-on display</string>
+    <string name="aod_phrase_label">Time phrase only</string>
+    <string name="aod_full_label">Full quote</string>
 </resources>

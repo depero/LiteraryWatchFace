@@ -104,6 +104,7 @@ public final class LiteratureGenerator {
         List<Passage> passages = parse(source);
         Map<Integer, List<Passage>> minutes = byMinute(passages);
         Document face = readXml(Files.readString(template, StandardCharsets.UTF_8));
+        compactLayout(face.getDocumentElement(), false);
         Element prototype = find(face.getDocumentElement(), "Group", "literature_entry_template");
         Element fallback = find(face.getDocumentElement(), "Group", "missing_passage_template");
         Node parent = prototype.getParentNode();
@@ -140,22 +141,15 @@ public final class LiteratureGenerator {
         }
         parent.removeChild(prototype);
         parent.removeChild(fallback);
+        find(face.getDocumentElement(), "Group", "ambient_quote").appendChild(ambientSelection(hours));
+        inlineLiteratureText(face, strings);
+        flattenLiteratureGroups(face);
 
         Path faceFile = output.resolve("raw/watchface.xml");
-        Path stringsFile = output.resolve("values/literature.xml");
         Files.createDirectories(faceFile.getParent());
-        Files.createDirectories(stringsFile.getParent());
         writeXml(face, faceFile);
-
-        Document resources = readXml("<resources/>");
-        for (Map.Entry<String, String> entry : strings.entrySet()) {
-            Element string = resources.createElement("string");
-            string.setAttribute("name", entry.getKey());
-            string.setAttribute("formatted", "false");
-            string.setTextContent(androidString(entry.getValue()));
-            resources.getDocumentElement().appendChild(string);
-        }
-        writeXml(resources, stringsFile);
+        // Remove the previous generator's redundant string table after migration.
+        Files.deleteIfExists(output.resolve("values/literature.xml"));
 
         List<String> missing = new ArrayList<>();
         for (int minute = 0; minute < 1440; minute++) {
@@ -180,9 +174,17 @@ public final class LiteratureGenerator {
         Element normal = (Element) text.getElementsByTagName("Font").item(0).cloneNode(true);
         Element highlighted = (Element) text.getElementsByTagName("Font").item(1).cloneNode(true);
         List<Run> segments = runs(passage);
+        int width = Integer.parseInt(body.getAttribute("width"));
+        int availableHeight = Integer.parseInt(body.getAttribute("height"));
         int size = fitSize(segments, Integer.parseInt(normal.getAttribute("size")), 12,
-                Integer.parseInt(body.getAttribute("width")), Integer.parseInt(body.getAttribute("height")),
-                passage.line(), "passage");
+                width, availableHeight, passage.line(), "passage");
+        // WFF 3 has no native vertical text alignment. Center a fitted text box
+        // within the template's main area, retaining the same clipping allowance.
+        int textHeight = Math.min(availableHeight, (int) Math.ceil(
+                measuredHeight(segments, size, width * 0.94f) + Math.min(6, availableHeight * 0.025f)));
+        int top = Integer.parseInt(body.getAttribute("y")) + (availableHeight - textHeight) / 2;
+        body.setAttribute("y", Integer.toString(top));
+        body.setAttribute("height", Integer.toString(textHeight));
         clear(text);
         int run = 0;
         for (Run segment : segments) {
@@ -198,6 +200,100 @@ public final class LiteratureGenerator {
         return group;
     }
 
+    private static Element ambientSelection(Element awake) {
+        Element copy = (Element) awake.cloneNode(true);
+        suffixNames(copy, "_ambient");
+        List<Element> remove = new ArrayList<>();
+        var parts = copy.getElementsByTagName("PartText");
+        for (int index = 0; index < parts.getLength(); index++) {
+            Element part = (Element) parts.item(index);
+            if (part.getAttribute("name").contains("_missing_message")) remove.add(part);
+        }
+        for (Element element : remove) element.getParentNode().removeChild(element);
+        var nodes = copy.getElementsByTagName("Font");
+        List<Element> fonts = new ArrayList<>();
+        for (int index = 0, count = nodes.getLength(); index < count; index++) fonts.add((Element) nodes.item(index));
+        for (Element font : fonts) {
+            String color = font.getAttribute("color");
+            font.setAttribute("color", color.equals("[CONFIGURATION.theme.4]") ? "#FFFFFFFF"
+                    : color.equals("[CONFIGURATION.theme.3]") ? "[CONFIGURATION.aod_mode.2]"
+                    : "[CONFIGURATION.aod_mode.0]");
+        }
+        return copy;
+    }
+
+    private static void suffixNames(Element element, String suffix) {
+        if (element.hasAttribute("name")) element.setAttribute("name", element.getAttribute("name") + suffix);
+        if (element.getTagName().equals("Compare")) element.setAttribute("expression", element.getAttribute("expression") + suffix);
+        for (Node child = element.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof Element) suffixNames((Element) child, suffix);
+        }
+    }
+
+    /** Remove formatting before cloning thousands of entries, preserving all displayed text. */
+    private static void compactLayout(Element element, boolean textContent) {
+        boolean literal = textContent || List.of("Text", "TextCircular", "Font", "Template", "Expression")
+                .contains(element.getTagName());
+        for (Node child = element.getFirstChild(); child != null;) {
+            Node next = child.getNextSibling();
+            if (child.getNodeType() == Node.COMMENT_NODE
+                    || (!literal && child.getNodeType() == Node.TEXT_NODE && child.getTextContent().isBlank())) {
+                element.removeChild(child);
+            } else if (child instanceof Element) {
+                compactLayout((Element) child, literal);
+            }
+            child = next;
+        }
+    }
+
+    /** Eliminate thousands of redundant scene objects without changing the editable template. */
+    private static void flattenLiteratureGroups(Document face) {
+        var nodes = face.getElementsByTagName("Group");
+        List<Element> groups = new ArrayList<>();
+        for (int index = 0, count = nodes.getLength(); index < count; index++) groups.add((Element) nodes.item(index));
+        for (Element group : groups) {
+            String name = group.getAttribute("name");
+            if (!name.matches("lit_[0-9]+(?:_ambient)?")) continue;
+            // Preserve custom group styling if the template gains anything beyond geometry/name.
+            if (group.getAttributes().getLength() != 5
+                    || !group.getAttribute("x").equals("0") || !group.getAttribute("y").equals("0")
+                    || !group.getAttribute("width").equals("450") || !group.getAttribute("height").equals("450")) continue;
+            List<Element> parts = new ArrayList<>();
+            boolean supported = true;
+            for (Node child = group.getFirstChild(); child != null; child = child.getNextSibling()) {
+                if (!(child instanceof Element)) continue;
+                Element element = (Element) child;
+                if (element.getTagName().equals("PartText")) {
+                    parts.add(element);
+                } else supported = false;
+            }
+            if (!supported) continue;
+            for (Element part : parts) {
+                group.getParentNode().insertBefore(part, group);
+            }
+            group.getParentNode().removeChild(group);
+        }
+    }
+
+    /** Static passages need literal text, not thousands of live Template/Parameter bindings. */
+    private static void inlineLiteratureText(Document document, Map<String, String> strings) {
+        var nodes = document.getElementsByTagName("Font");
+        List<Element> fonts = new ArrayList<>();
+        for (int index = 0, count = nodes.getLength(); index < count; index++) fonts.add((Element) nodes.item(index));
+        for (Element font : fonts) {
+            var parameters = font.getElementsByTagName("Parameter");
+            if (parameters.getLength() != 1) continue;
+            String resource = ((Element) parameters.item(0)).getAttribute("expression");
+            if (strings.containsKey(resource)) font.setTextContent(strings.get(resource));
+        }
+    }
+
+    /**
+     * Native auto-size can clip mixed Font/Template runs on some runtimes. Pre-fit
+     * using Unicode line breaking, bold spans, explicit line breaks, and spare room
+     * for differences between the desktop and watch system fonts. Native auto-size
+     * remains enabled as an additional adjustment for the actual device font.
+     */
     private static void setPartResource(Element group, String name, String id, String value, int line, Map<String, String> strings)
             throws IOException {
         Element part = find(group, "PartText", name);
@@ -210,13 +306,6 @@ public final class LiteratureGenerator {
         setResource(font, id);
         strings.put(id, value);
     }
-
-    /**
-     * Native auto-size can clip mixed Font/Template runs on some runtimes. Pre-fit
-     * using Unicode line breaking, bold spans, explicit line breaks, and spare room
-     * for differences between the desktop and watch system fonts. Native auto-size
-     * remains enabled as an additional adjustment for the actual device font.
-     */
     static int fitSize(List<Run> runs, int maximum, int minimum, int width, int height, int line, String field)
             throws IOException {
         for (int size = maximum; size >= minimum; size--) {
@@ -314,13 +403,6 @@ public final class LiteratureGenerator {
 
     private static void clear(Element element) {
         while (element.hasChildNodes()) element.removeChild(element.getFirstChild());
-    }
-
-    static String androidString(String text) {
-        // Quoted Android strings preserve leading/trailing whitespace between inline fonts.
-        // Resource text is passed through %s, so literal %, quotes, @, and ? remain data.
-        return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'")
-                .replace("\n", "\\n").replace("\t", "\\t") + "\"";
     }
 
     static Document readXml(String xml) throws IOException {
