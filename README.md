@@ -1,5 +1,7 @@
 # Literary Watch Face
 
+This project is a showcase of my love for literature and thought it would be nifty to create a watch face based on other applications I have seen.
+
 The awake face shows a passage matching the watch's local hour and minute. Its time phrase is highlighted in a separate color, battery percentage and date appear above, and the book title and author appear below. The watch face editor's **Always-on display** setting offers **Time phrase only** (white phrase on black) or **Full quote** (dim gray passage, bold white time phrase, and title/author). Both keep the same text placement as the awake quote.
 
 This is a **Watch Face Format (WFF) version 3** resource-only app. Gradle parses the literature file on your computer and generates XML; Wear OS selects and renders it without an app timer or runtime CSV parser. Version 3 provides automatic text sizing. The existing minimum Android API 36 is unchanged and supports this format.
